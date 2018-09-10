@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="minimum-scale=1.0, width=device-width, maximum-scale=1.0, user-scalable=no">
+    <title>WebSocket</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+
+<body>
+    <header>
+        <h1>bubleFIGHTERS</h1>
+    </header>
+    <div class="greetings-wrapper">
+        <section class="greetings">
+            <h2>Hello,Stranger!</h2>
+            <p>Enter you Name and chose your Color</p>
+        </section>
+        <section class="initializer">
+            <form id="initializer-form">
+                <input type="text" id="initializer-input" placeholder="unnamedBubble" required autofocus autocomplete="off">
+                <select id="initializer-select">
+                    <option value="blue">blue</option>
+                    <option value="red">red</option>
+                    <option value="green">green</option>
+                    <option value="yellow">yellow</option>
+                </select>
+                <button>Go to bubble RING!</button>
+            </form>
+        </section>
+    </div>
+    <div class="main-wrapper hidden">
+        <canvas id="bubbleFighters" width="800" height="600"></canvas>
+        <form id="chat">
+            <input type="text" id="input" required autofocus autocomplete="off">
+        </form>
+        <ul id="messages"></ul>
+        <button id="fight">FIGHT!</button>
+    </div>
+    <script src="socket.io.js"></script>
+    <!-- 
+        <script src="app.js"></script> -->
+    <script src="socket.js"></script>
+</body>
+
+</html>
+
+<script type="text/javascript"> 
+    (function () {
+        var nameInput = document.getElementById('name').addEventListener('blur', validateName)
+        var phoneInput = document.getElementById('phone').addEventListener('blur', validatePhone)
+        var emailInput = document.getElementById('email').addEventListener('blur', validateEmail)
+        var hasError = false;
+
+
+        var form = document.querySelector('.form1');
+        var inputs = document.querySelectorAll('.fe-contact-form__input');
+        var select = document.querySelector('.fe-contact-form__select');
+        var thankyou = document.querySelector('.fe-thank-you');
+
+        select.addEventListener('change', checkSelect)
+        function checkSelect() {
+            var selectError = document.querySelector('.select-error');
+            selectError.textContent = null
+        }
+
+        function errorType(field, color) {
+            if (field.classList.contains('red')) {
+                field.classList.remove('red');
+                field.classList.add(color);
+            } else {
+                if (field.classList.contains('green')) {
+                    field.classList.remove('green');
+                    field.classList.add(color);
+                } else field.classList.add(color);
+            }
+        }
+
+        function validateName() {
+            var name = document.getElementById('name');
+            var re = /^[a-zA-Z-а-я-А-Я]{2,10}$/;
+            var nameError = document.querySelector('.name-error');
+            if (!re.test(name.value)) {
+                nameError.textContent = "Имя введено неверно";
+                errorType(nameError, 'red');
+                hasError = true;
+            } else {
+                nameError.textContent = "Имя введено верно";
+                errorType(nameError, 'green');
+            }
+        }
+        function validatePhone() {
+            var phone = document.getElementById('phone');
+            var re = /^[0-9+]/;
+            var phoneError = document.querySelector('.phone-error');
+            if (!re.test(phone.value)) {
+                phoneError.textContent = "Телефон введен неверно";
+                errorType(phoneError, 'red');
+                hasError = true;
+            } else {
+                phoneError.textContent = "Телефон введен верно";
+                errorType(phoneError, 'green');
+            }
+        }
+        function validateEmail() {
+            var email = document.getElementById('email');
+            var re = /^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$/;
+            var emailError = document.querySelector('.email-error');
+            if (!re.test(email.value)) {
+                emailError.textContent = "Email введен неверно";
+                errorType(emailError, 'red');
+                hasError = true;
+            } else {
+                emailError.textContent = "Email введен верно";
+                errorType(emailError, 'green');
+            }
+        }
+
+        form.addEventListener('submit', onSubmit);
+        function onSubmit(e) {
+            hasError = false;
+            e.preventDefault();
+            validateEmail();
+            validatePhone();
+            validateName();
+            var formData = new FormData();
+            var selectError = document.querySelector('.select-error');
+            if (select.value === 'choose') {
+                selectError.textContent = "Выберите курс";
+                errorType(selectError, 'red');
+                hasError = true;
+            } else {
+
+                formData.append(select.name, select.value);
+                checkSelect()
+
+            }
+            inputs.forEach(function (item) {
+                if (!item.value) {
+                    hasError = true;
+                }
+                formData.append(item.name, item.value);
+
+
+            })
+            if (!hasError) {
+                form.style.display = 'none';
+                thankyou.classList.remove('none');
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://docs.google.com/forms/d/e/1FAIpQLScXm4HOZfpxI8y2ElLXSFHgJHoRGBRp73DZIYunWCEBAZPWNQ/formResponse', true);
+                xhr.send(formData);
+                sendDataFromAjax()
+
+            }
+        }
+        function sendDataFromAjax() {
+            var data = {
+                name: document.querySelector('#name').value,
+                mail: document.querySelector('#email').value,
+                phone: document.querySelector('#phone').value,
+                cousrse: document.querySelector('select').value
+            };
+            console.log(data);
+        }
+
+    })();
+
+    (function () {
+        var app = {};
+        (function () {
+            app.lang = getLang();
+            app.langCount = { 'en': 0, 'es': 1, 'ar': 2, 'ru': 3 };
+            app.errorTextIsEmpyArray = ['At the moment there are no changes in the work', 'Por el momento no hay cambios en el trabajo', 'ÙÙŠ Ù‡Ø°Ù‡ Ø§Ù„Ù„Ø­Ø¸Ø© Ù„Ø§ ØªÙˆØ¬Ø¯ ØªØºÙŠÙŠØ±Ø§Øª ÙÙŠ Ø§Ù„Ø¹Ù…Ù„', 'ÐÐ° Ð´Ð°Ð½Ð½Ñ‹Ð¹ Ð¼Ð¾Ð¼ÐµÐ½Ñ‚ Ð½ÐµÑ‚ Ð½Ð¸ÐºÐ°ÐºÐ¸Ñ… Ð¸Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ð¹ Ð² Ñ€Ð°Ð±Ð¾Ñ‚Ðµ'];
+            app.errorTextIsBadResponse = ['Minor problems with getting data. Try again later.', 'Problemas menores con la obtenciÃ³n de datos. IntÃ©ntelo mÃ¡s tarde.', 'Ù…Ø´Ø§ÙƒÙ„ Ø¨Ø³ÙŠØ·Ø© ÙÙŠ Ø§Ù„Ø­ØµÙˆÙ„ Ø¹Ù„Ù‰ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª ØŒ Ø£Ø¹Ø¯ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù„Ø§Ø­Ù‚Ù‹Ø§.', 'ÐÐµÐ±Ð¾Ð»ÑŒÑˆÐ¸Ðµ Ð¿Ñ€Ð¾Ð±Ð»ÐµÐ¼Ñ‹ Ñ Ð¿Ð¾Ð»ÑƒÑ‡ÐµÐ½Ð¸ÐµÐ¼ Ð´Ð°Ð½Ð½Ñ‹Ñ….ÐŸÐ¾Ð¿Ñ€Ð¾Ð±ÑƒÐ¹Ñ‚Ðµ Ð¿Ð¾Ð·Ð¶Ðµ'];
+            ajaxChangesInTraders();
+        })();
+        function getLang() {
+            return getAtribut(".changesIntrades", "lang");
+        }
+        function getAtribut(obj, atribut) {
+            return $(obj).data(atribut);
+        }
+        function ajaxChangesInTraders() {
+            $.ajax({
+                type: 'GET',
+                url: "https://news.investforum.ru/feed/filter/full/?&channels=Umtredingchanges&lang=" + app.lang,
+                success: function (response) {
+                    if (response) {
+                        var allNews = JSON.parse(response);
+                        getTraders(allNews);
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                    showError("");
+                    // showError(app.errorTextIsBadResponse[app.langCount[app.lang]]);
+                }
+            });
+        }
+        function showError(errorText) {
+            $(".changesIntrades").append(function () {
+                return $("<div/>")
+                    .addClass("changesIntrades-wrapper")
+                    .append($("<div/>")
+                        .addClass("changesIntrades__error").html(errorText))
+            })
+        }
+        function getTraders(data) { // crete filtered array with proper items based on lang
+            console.log(data)
+            var changeIntrades;
+            if (data.length > 0 && app.lang == "en") {
+                changeIntrades = data.filter(function (item) {
+                    return item.Title == "Dear clients!";
+                })
+                createTraders(changeIntrades[0]['Title'], changeIntrades[0].Description, changeIntrades[0].Encoded);
+            } else if (data.length > 0 && app.lang == "es") {
+                changeIntrades = data.filter(function (item) {
+                    return item.Title == "Â¡Estimados clientes!";
+                })
+                createTraders(changeIntrades[0]['Title'], changeIntrades[0].Description, changeIntrades[0].Encoded);
+            } else if (data.length > 0 && app.lang == "ar") {
+                changeIntrades = data.filter(function (item) {
+                    return item.Title == "Ø²Ø¨Ù†Ø§Ø¤Ù†Ø§ Ø§Ù„Ø£Ø¹Ø²Ø§Ø¡ØŒ";
+                })
+                createTraders(changeIntrades[0]['Title'], changeIntrades[0].Description, changeIntrades[0].Encoded);
+            }
+            else {
+                showError("");
+                // showError(app.errorTextIsEmpyArray[app.langCount[app.lang]]);
+            }
+        }
+        function createTraders(title, description, fullText) {
+            $(".changesIntrades").append(function () {
+                return $("<div/>")
+                    .addClass("changesIntrades-wrapper")
+                    .append($("<div/>")
+                        .addClass("changesIntrades__title").html(title))
+                    .append($("<div/>")
+                        .addClass("changesIntrades__description").html(description))
+                    .append($("<div/>")
+                        .addClass("changesIntrades__full-text").html(fullText))
+            })
+        }
+    })();
+</script>
+
+
+
+
+
+
+
+
+<script type="text/javascript"> 
+    (function () {
+        var secondNameInput = document.getElementById('name').addEventListener('blur', validateSecondName)
+        var sertificateInput = document.getElementById('number').addEventListener('blur', validateSertificate)
+        var hasError = false;
+
+        var form = document.querySelector('.verify-form');
+        var inputs = document.querySelectorAll('.verify-form-contact-form__input');
+        var thankyou = document.querySelector('.verify-fe-thank-you');
+
+        function errorType(field, color) {
+            if (field.classList.contains('red')) {
+                field.classList.remove('red');
+                field.classList.add(color);
+            } else {
+                if (field.classList.contains('green')) {
+                    field.classList.remove('green');
+                    field.classList.add(color);
+                } else field.classList.add(color);
+            }
+        }
+
+        function validateSecondName() {
+            var name = document.getElementById('name');
+            var re = /^[a-zA-Z-а-я-А-Я-0-9]{3,20}$/;
+            var nameError = document.querySelector('.second-name-error');
+            if (!re.test(name.value)) {
+                nameError.textContent = "Фамилия введена неверно";
+                errorType(nameError, 'red');
+                hasError = true;
+            } else {
+                nameError.textContent = "Фамилия введена верно";
+                errorType(nameError, 'green');
+            }
+        }
+        function validateSertificate() {
+            var name = document.getElementById('number');
+            var re = /^[a-zA-Z - 0-9]{2,20}$/;
+            var nameError = document.querySelector('.sertificate-error');
+            if (!re.test(name.value)) {
+                nameError.textContent = "Сертификат введен неверно";
+                errorType(nameError, 'red');
+                hasError = true;
+            } else {
+                nameError.textContent = "Сертификат введен верно";
+                errorType(nameError, 'green');
+            }
+        }
+        form.addEventListener('submit', onSubmit);
+        function onSubmit(e) {
+            hasError = false;
+            e.preventDefault();
+            validateSertificate();
+            validateSecondName();
+            var formData = new FormData();
+            var datatest = {
+                name: 'name',
+                number: 'SKD 232'
+            }
+            if (!hasError) {
+                inputs.forEach(function (item) {
+                    console.log(item.id)
+                    console.log(item.value)
+                    formData.append(item.id, item.value);
+                });
+                console.log(formData);
+                console.log(inputs);
+
+                $.ajax({
+                    type: 'POST',
+                    data: datatest,
+                    url: "https://deveducation.com/deveducation_sertificate/token.php",
+                    success: function (response) {
+                        if (response) {
+                            console.log(response);
+                            form.style.display = 'none';
+                            thankyou.classList.remove('none');
+                        }
+                    },
+                    error: function (error) {
+                        console.log(error)
+                        console.log("FAIL:(");
+                        // showError(app.errorTextIsBadResponse[app.langCount[app.lang]]);
+                    }
+                });
+
+                // var xhr = new XMLHttpRequest();
+                // xhr.open('POST', 'https://deveducation.com/deveducation_sertificate/token.php', true);
+
+                // xhr.send(datatest);
+                // console.log("status", xhr.status)
+
+
+                // xhr.onreadystatechange = function () {
+                //     if (this.readyState == 4 && this.status == 200) {
+                //         var myArr = JSON.parse(this.responseText);
+                //         console.log(myArr);
+                //     }
+                // };
+
+            }
+        }
+    })();
+
+</script>
